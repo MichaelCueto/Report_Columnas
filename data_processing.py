@@ -41,7 +41,6 @@ class ExcelReader:
             (r'TBC(\d{3}) - D', r'TBC \1 - D'),
             (r'TBC(\d{3}) - 3D', r'TBC \1 - 3D')
         ]
-        converted_names = {}
         dfs = []
         for file_name in file_names:
             # Quitar la extensión .xlsx
@@ -54,11 +53,10 @@ class ExcelReader:
             file_name_no_ext = re.sub(r'TCC 0*', 'TCC ', file_name_no_ext)
             file_name_no_ext = re.sub(r'TBC 0*', 'TBC ', file_name_no_ext)
             file_name_no_ext = re.sub(r'TBCM0*', 'TBCM', file_name_no_ext)
-            converted_names[original_name] = file_name_no_ext 
             df = self.read_single_excel(os.path.join(self.folder_path,file_name))
             df['Nombre del Archivo'] = file_name_no_ext
             dfs.append(df)
-        return dfs,converted_names
+        return dfs
 
     def read_single_excel(self, file_path):
         try:
@@ -128,14 +126,12 @@ class ExcelReader:
         return results
     
 class MetallurgicalProcess:
-    def __init__(self,df, parameters,Raffinate_Density,PLS_Density,root_db_cu,equivalencias,tiempo_prueba):
+    def __init__(self,df, parameters,Raffinate_Density,PLS_Density):
         self.df = df
         self.parameters = parameters
         self.Raffinate_Density = Raffinate_Density
         self.PLS_Density = PLS_Density
-        self.db_cu = pd.read_excel(root_db_cu)
-        self.equivalencias = equivalencias
-        self.tiempo_prueba = tiempo_prueba
+        
     def area_column(self,column_size):
         db_area = {
         'Column_Size': ['4"X8 m', '6"X6 m', '6"X1 m', '6"X3 m', '8"X1 m','8"X4 m','8"X6 m','3mX6 m','8"X8 m','8"X10 m','8"X12 m','8"X16 m','8"X20 m',
@@ -150,12 +146,6 @@ class MetallurgicalProcess:
 
     def process(self):
         dfs1 = []
-        dfs2 = []
-        dfs3 = []
-        dfs4 = []
-        dfs5 = []
-        dfs6 = []
-        dfs7 = []
         for df, params in zip(self.df, self.parameters):
             try:
                 (dry_column_charge, column_size, peso_inicial, cu_inicial, h2so4_inicial, fe_total_inicial, fe_2_inicial, altura_inicial_mineral, cu_total, fe_total, cu_acido,cu_cn, cu_residual,material_moisture) = params
@@ -408,14 +398,6 @@ class MetallurgicalProcess:
             df_vol['Retained_Solution(g/Kg)']= (df_feed['Peso(g)_Feed'].cumsum() - df_pls['Peso(g)_PLS'].cumsum())/(dry_column_charge*1000)
             df_vol['Retained_Solution(g/Kg)'][0] = 0
             
-            # condition = (df_feed['Peso(g)_Feed'] == 0)
-            # df_vol['Dynamic_Moisture'] = pd.Series(index=df_pls.index)
-            # df_vol['Dynamic_Moisture'][0] = 0
-            # df_vol.loc[condition, 'Dynamic_Moisture'] = df_vol.loc[condition, 'Dynamic_Moisture'].shift(1)
-            # df_vol.loc[~condition, 'Dynamic_Moisture'] = material_moisture + df_vol.loc[~condition, 'Retained_Solution(g/Kg)'] * df_others.loc[~condition, 'Raffinate_Density']
-            # df_vol['Dynamic_Moisture'][0] = 0
-            # df_vol['Dynamic_Moisture'] = df_vol['Dynamic_Moisture'].fillna(0)
-            
             df_final_1 = pd.concat([df_feed,df_pls,df_others,df_rec,df_ac,df_eb,df_feed_calc,df_pls_calc,df_vol,df_add],axis=1)
 
             df_IL = pd.DataFrame()
@@ -424,467 +406,17 @@ class MetallurgicalProcess:
             df_IL['Ext%Cu_facil'] = (db*cu_total)/(cu_acido + 0.5*cu_cn)
             df_IL['Ext%Cu_IL'] = (db*cu_total)/(cu_acido + cu_cn)
             df_final_2 = pd.concat([df_final_1, df_IL], axis=1)
-            df_final_2 = df_final_2.drop(df_final_2.index[0])
-            #df_final_3 = df_final_3[['Nombre del Archivo','Día','Cumulated(%CuT)','Ext%Cu_facil','Ext%Cu_IL']]
-            df_final_3 = df_final_2.copy()        
-
-            def modelo_ajuste(df, columna_dias, columna_y, modelo):
-                df = df[[columna_dias, columna_y]].dropna()
-                yo = df[columna_y]
-                xo = df[columna_dias]
-                # Definir los modelos
-                def modelo1_t(t, A1, A2, R1, R2):
-                    return 100 * (A1 * (1 - (1 - A2)**(t - 3)) + R1 * (1 - (1 - R2)**(t - 3)))
-                
-                def modelo2_t(t, K1, K2, K3, n):
-                    return np.where(t < 3, 0, K1 * (K2 * (1 - np.exp(-K3 * (t - 3)**n))))
-
-                def modelo1_ac(ac, B1, B2, S1, S2):
-                    return 100 * (B1 * (1 - (1 - B2)**(ac - ac_0)) + S1 * (1 - (1 - S2)**(ac - ac_0)))
-                
-                def modelo2_ac(ac, G1, G2, G3, n):
-                    return np.where(ac < ac_0, 0,G1 * (G2 * (1 - np.exp(-G3 * (ac - ac_0)**n))))
-                       
-
-                if modelo == 'modelo1_t':
-                    # Parámetros iniciales y límites para el primer modelo
-                    initial_params = [1, 0.5, 1, 0.5]
-                    param_bounds = ([0, 0, 0, 0], [np.inf, 1, np.inf, 1])
-
-                    try:
-                        params_restricted, params_covariance_restricted = curve_fit(
-                            modelo1_t, xo, yo, p0=initial_params, bounds=param_bounds, maxfev=50000
-                        )
-                        A1, A2, R1, R2 = params_restricted
-                        y_pred_restricted = modelo1_t(xo, A1, A2, R1, R2)
-                        r2 = r2_score(yo, y_pred_restricted)
-                        rmse = (mean_squared_error(yo, y_pred_restricted))
-                        return A1, A2, R1, R2, r2,rmse, xo, yo
-                    except RuntimeError as e:
-                        print(f"Error in curve fitting: {e}")
-                        return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, xo, yo
-                
-
-                elif modelo == 'modelo2_t':
-                    # Parámetros iniciales y límites para el tercer modelo
-                    initial_params = [1, 1, 1, 1]
-                    param_bounds = ([0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf])
-
-                    try:
-                        params_restricted, params_covariance_restricted = curve_fit(
-                            modelo2_t, xo, yo, p0=initial_params, bounds=param_bounds, maxfev=60000
-                        )
-                        K1, K2, K3, n = params_restricted
-                        y_pred_restricted = modelo2_t(xo, K1, K2, K3, n)
-                        r2 = r2_score(yo, y_pred_restricted)
-                        rmse = np.sqrt(mean_squared_error(yo, y_pred_restricted))
-                        return K1, K2, K3, n, r2, rmse, xo, yo
-                    
-                    except RuntimeError as e:
-                        print(f"Error in curve fitting: {e}")
-                        return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, xo, yo
-                
-                elif modelo == 'modelo1_ac':
-                    # Parámetros iniciales y límites para el segundo modelo
-                    initial_params = [1, 0.5, 1, 0.5]
-                    param_bounds = ([0, 0, 0, 0], [np.inf, 1, np.inf, 1])
-
-                    try:
-                        params_restricted, params_covariance_restricted = curve_fit(
-                            modelo1_ac, xo, yo, p0=initial_params, bounds=param_bounds, maxfev=50000
-                        )
-                        B1, B2, S1, S2 = params_restricted
-                        y_pred_restricted = modelo1_ac(xo, B1, B2, S1, S2)
-                        r2 = r2_score(yo, y_pred_restricted)
-                        rmse = np.sqrt(mean_squared_error(yo, y_pred_restricted))
-                        return B1, B2, S1, S2, r2,rmse, xo, yo
-                    
-                    except RuntimeError as e:
-                        print(f"Error in curve fitting: {e}")
-                        return np.nan, np.nan, np.nan, np.nan, np.nan,np.nan, xo, yo
-                    
-                elif modelo == 'modelo2_ac':
-                    # Parámetros iniciales y límites para el segundo modelo
-                    initial_params = [1, 1, 1, 1]
-                    param_bounds = ([0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf])
-
-                    try:
-                        params_restricted, params_covariance_restricted = curve_fit(
-                            modelo2_ac, xo, yo, p0=initial_params, bounds=param_bounds, maxfev=50000
-                        )
-                        G1, G2, G3, n = params_restricted
-                        y_pred_restricted = modelo2_ac(xo, G1, G2, G3, n)
-                        r2 = r2_score(yo, y_pred_restricted)
-                        rmse = np.sqrt(mean_squared_error(yo, y_pred_restricted))
-                        return G1, G2, G3, n, r2,rmse, xo, yo
-                    
-                    except RuntimeError as e:
-                        print(f"Error in curve fitting: {e}")
-                        return np.nan, np.nan, np.nan, np.nan, np.nan,np.nan, xo, yo
-
-                else:
-                    print("Modelo no reconocido")
-                    return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, xo, yo
-                        
-            ac_0 = df_final_3['Added_H2SO4_Cumulated(Kg/Tn)'].min()
-
-            #modelos Rec vs time
-            A1,A2,R1,R2,r2_t1,rmse_t1,xo,yo = modelo_ajuste(df_final_3,'Día','Cumulated(%CuT)',modelo='modelo1_t')
-            K1, K2, K3, n1, r2_t2, rmse_t2, xo, yo = modelo_ajuste(df_final_3, 'Día', 'Cumulated(%CuT)', modelo='modelo2_t')
-
-            df_final_3['Ext%_Cu_model_t1'] = 100 * (A1 * (1 - (1 - A2)**(xo - 3)) + R1 * (1 - (1 - R2)**(xo - 3)))
-            df_final_3['Ext%_Cu_model_t2'] = K1 * (K2 * (1 - np.exp(-K3 * (xo - 3)**n1)))
-
-            #modelos Rec vs cons_acido
-            B1,B2,S1,S2,r2_ac1,rmse_ac1,ac,yo = modelo_ajuste(df_final_3,'Added_H2SO4_Cumulated(Kg/Tn)', 'Cumulated(%CuT)', modelo='modelo1_ac')
-            G1, G2, G3, n2,r2_ac2,rmse_ac2,ac,yo = modelo_ajuste(df_final_3, 'Added_H2SO4_Cumulated(Kg/Tn)', 'Cumulated(%CuT)', modelo='modelo2_ac')
-        
-            #df_final_3['ExtAcum_CuT_%_pred_2'] = df_final_3['ExtAcum_CuT_%_pred_2'].fillna(0)
-            df_final_3['Ext%_Cu_model_ac1'] = 100 * (B1 * (1 - (1 - B2)**(ac - ac_0)) + S1 * (1 - (1 - S2)**(ac - ac_0)))
-            df_final_3['Ext%_Cu_model_ac2'] = G1 * (G2 * (1 - np.exp(-G3 * (ac - ac_0)**n2)))
-
-            db_1 = pd.DataFrame({
-            'columna': [df_final_3['Nombre del Archivo'].iloc[0]],
-            'dias_max_lixiviación' : xo.max(),
-            'r2 modelo Rec vs Tiempo': [r2_t1],
-            'error modelo Rec vs Tiempo':[rmse_t1],
-            'A1': [A1],
-            'A2': [A2],
-            'R1': [R1],
-            'R2': [R2],
-            'r2 modelo Rec vs Tiempo 2': [r2_t2],
-            'error modelo Rec vs Tiempo 2':[rmse_t2],
-            'K1': [K1],
-            'K2': [K2],
-            'K3': [K3],
-            'ac': [ac_0],
-            'acido_consumido':ac.max(),
-            'r2 modelo Rec vs acido': [r2_ac1],
-            'error modelo Rec vs acido':[rmse_ac1],
-            'B1': [B1],
-            'B2': [B2],
-            'S1': [S1],
-            'S2': [S2],
-            'r2 modelo Rec vs acido 2': [r2_ac2],
-            'error modelo Rec vs acido 2':[rmse_ac2],
-            'G1': [G1],
-            'G2': [G2],
-            'G3': [G3],
-            'ac ': [ac_0],
-            'CuS/CuT':cu_cn/cu_total,
-            '% CuT': cu_total,
-            'ley_cu':[cu_total],
-            'cu_cn':cu_cn,
-            'cu_acido':cu_acido,
-            'cu_IL':cu_acido+cu_cn,
-            })
-
-            #formato pmh resumen
-            df_cm = pd.DataFrame()
-            df_cm['columna'] = df_final_3['Nombre del Archivo'].unique()
-            #parte1
-            df_cm['CuT (%)_calculado'] = [cu_acido + cu_acido + cu_residual]
-            df_cm['CuT (%)_ensayado'] = [cu_total]
-            df_cm['FeT (%)'] = [fe_total]
-            df_cm['CuS (%)'] = [cu_acido]
-            df_cm['CuCN (%)'] = [cu_cn]
-            df_cm['CuRes (%)'] = [cu_residual]
-            #parte2
-            df_cm['Ley CuT, Kg/ton'] = df_cm['CuT (%)_ensayado'] * 10
-            df_cm['Ley CuCN, Kg/ton'] = df_cm['CuCN (%)'] * 10
-            df_cm['Ley CuS, Kg/ton'] = df_cm['CuS (%)'] * 10
-            df_cm['Ley Res, Kg/ton'] = df_cm['CuRes (%)'] * 10
-            #parte3
-            df_cm['%CuS/CuT'] = (df_cm['CuS (%)']/df_cm['CuT (%)_ensayado'])*100
-            df_cm['%CuRes/CuT'] = (df_cm['CuRes (%)']/df_cm['CuT (%)_ensayado'])*100
-            df_cm['%CuCN/CuT'] = (df_cm['CuCN (%)']/df_cm['CuT (%)_ensayado'])*100
-            #parte4
-            df_cm['% Cu Total en función Cab Calculada'] = df_cm['%CuRes/CuT'] + df_cm['%CuS/CuT'] + df_cm['%CuCN/CuT']
-            df_cm['% Índice lixiviabilidad'] = df_cm['%CuS/CuT'] + df_cm['%CuCN/CuT']
-            df_cm['Recup Facil Bacterial'] = df_cm['%CuS/CuT'] + 0.5*df_cm['%CuCN/CuT']
-            
-            #parte5
-            # crear función para tener los datos respecto o en función del numero de dias
-            def dias_parametros(df,dias,dias_max=False):
-                df['Día'] = pd.to_numeric(df['Día'], errors='coerce')  # Convierte la columna a numérica
-                if dias_max == True:
-                    dias = df['Día'].max()
-                    df_cu_dias = df['Cumulated(%CuT)'].max()
-                    df_fe_dias = df['Cumulated_FeT%'].max()
-                    df_acido_dias = df['Net_Acid_Consumption(Kg/Tn)'].max()
-                else:
-                    if not df[df['Día']==dias].empty:
-                        df_cu_dias = df.loc[df['Día']==dias,'Cumulated(%CuT)'].values[0]
-                        df_fe_dias = df.loc[df['Día']==dias,'Cumulated_FeT%'].values[0]
-                        df_acido_dias = df.loc[df['Día']==dias,'Net_Acid_Consumption(Kg/Tn)'].values[0]
-                    else:
-                        df_cu_dias = None
-                        df_fe_dias = None
-                        df_acido_dias = None
-                return [dias], [df_cu_dias], [df_fe_dias], [df_acido_dias]
-
-            df_cm['Dias de Lixiviación'], df_cm['Recup Cu del CuT, %'], df_cm['Recup Cu del FeT, %'],df_cm['Consumo Total de Acido'] = dias_parametros(df_final_3,dias=40,dias_max=None)
-            #df_cm['Dias de Lixiviación'], df_cm['Recup Cu del CuT, %'], df_cm['Recup Cu del FeT, %'],df_cm['Consumo Total de Acido'] = dias_parametros(df_final_3,dias=None,dias_max=True)
-            #parte 6
-            df_cm['Recup CuT, kg/ton'] = df_cm['CuT (%)_ensayado']*df_cm['Recup Cu del CuT, %']*10/100
-            df_cm['Recup Cu, kg/ton Sulfuros'] = df_cm['Recup CuT, kg/ton']-df_cm['CuS (%)']*10
-            df_cm['Recup Cu Secundario del CuCN'] = df_cm['Recup Cu, kg/ton Sulfuros']*100/(df_cm['CuCN (%)']*10)
-            df_cm['Recup Cu sulfuros del (CuCN+CuRes)'] = df_cm['Recup Cu, kg/ton Sulfuros']*100/(df_cm['CuCN (%)']*10 + df_cm['CuRes (%)']*10)
-            df_cm['Falta recuperar del Cu Secundario'] = 100 - df_cm['Recup Cu Secundario del CuCN']
-            df_cm['Falta recuperar de todos Sulfuros'] = 100 - df_cm['Recup Cu sulfuros del (CuCN+CuRes)']
-            df_cm['Falta recuperar del Cu Secundario Kg/ton'] = df_cm['Recup Cu, kg/ton Sulfuros'] - df_cm['Ley CuCN, Kg/ton']
-            df_cm['Recup Cu adicional sobre Facil Bacterial'] = df_cm['Recup Cu del CuT, %'] - df_cm['Recup Facil Bacterial']
-            df_cm['Recup Cu del IL'] = (df_cm['Recup Cu del CuT, %']/df_cm['% Índice lixiviabilidad'])*100
-            df_cm['Recup Cu Secundario del CuT'] = (df_cm['Recup Cu, kg/ton Sulfuros']/df_cm['Ley CuT, Kg/ton'])*100
-            df_cm['Falta recuperar del Cu Secundario, %'] = df_cm['%CuCN/CuT'] - df_cm['Recup Cu Secundario del CuT']
-            df_cm['Recup CuCN facil en Ac. Sulfurico, %'] = (df_cm['Recup Cu, kg/ton Sulfuros']/(0.5*df_cm['Ley CuCN, Kg/ton']))*100
-
-            #formato resumen condiciones
-            #solo enriquecidos
-            #parte1 - caracterización quimica
-            df_rc = pd.DataFrame()
-            df_rc['columna'] = df_final_3['Nombre del Archivo'].unique()
-            df_rc['CuT (%)_calculado'] = [cu_acido + cu_acido + cu_residual] 
-            df_rc['CuT (%)_ensayado'] = [cu_total]
-            df_rc['FeT (%)'] = [fe_total]
-            df_rc['CuS (%)'] = [cu_acido]
-            df_rc['CuCN (%)'] = [cu_cn]
-            df_rc['CuRes (%)'] = [cu_residual]
-            df_rc['%CuS/CuT'] = (df_rc['CuS (%)']/df_rc['CuT (%)_ensayado'])*100
-            df_rc['%CuRes/CuT'] = (df_rc['CuRes (%)']/df_rc['CuT (%)_ensayado'])*100
-            df_rc['%CuCN/CuT'] = (df_rc['CuCN (%)']/df_rc['CuT (%)_ensayado'])*100
-            df_rc['% Cu Total en función Cab Calculada'] = df_rc['%CuS/CuT'] + df_rc['%CuRes/CuT'] + df_rc['%CuCN/CuT']
-            df_rc['% Índice lixiviabilidad'] = df_rc['%CuS/CuT'] + df_rc['%CuCN/CuT']
-            df_rc['Recup Facil Bacterial'] = df_rc['%CuS/CuT'] + 0.5*df_rc['%CuCN/CuT']
-
-            #parte2 - Dias
-            df_rcd1 = pd.DataFrame()
-            df_rcd2 = pd.DataFrame()
-            df_rcd3 = pd.DataFrame()
-            df_rcd1['Día'], df_rcd1['Recup Cu del CuT, %'], df_rcd1['Recup Cu del FeT, %'], df_rcd1['Consumo Total de Acido']= dias_parametros(df_final_3,dias=None,dias_max=True)
-            df_rcd2['Día'], df_rcd2['Recup Cu del CuT, %'], df_rcd2['Recup Cu del FeT, %'], df_rcd2['Consumo Total de Acido']= dias_parametros(df_final_3,dias=30,dias_max=False)
-            df_rcd3['Día'], df_rcd3['Recup Cu del CuT, %'], df_rcd3['Recup Cu del FeT, %'], df_rcd3['Consumo Total de Acido'] = dias_parametros(df_final_3,dias=60,dias_max=False)
-            df_rcd_total = pd.concat([df_rc,df_rcd1, df_rcd2, df_rcd3],axis=1)
-            
-            # Análisis_Clusters
-            def generar_dataframes(df, dias_maximo):
-                dataframes = []
-                for dias in range(15, dias_maximo + 1, 5):
-                    df_temp = pd.DataFrame()
-                    df_temp[f'Día_{dias}'], df_temp[f'RecCu_{dias}'], df_temp[f'RecFe_{dias}'], df_temp[f'ConsumoAcido_{dias}'] = dias_parametros(df, dias=dias, dias_max=False)
-                    dataframes.append(df_temp)
-                df_final = pd.concat(dataframes, axis=1)
-                df_final['columna'] = df['Nombre del Archivo'].unique()[0]
-                return df_final
-
-            # Crear el dataframe con los resultados de generar_dataframes
-            df_cluster = generar_dataframes(df=df_final_3, dias_maximo=self.tiempo_prueba)
-            #df_cluster['columa'] = df_final_3['Nombre del Archivo']
-
-            #formato pmh modelo rec - consumo acido
-            df_final_4 = pd.DataFrame()
-            df_final_4['columna'] = df_final_3['Nombre del Archivo']
-            df_final_4['dias'] = df_final_3['Día']
-            df_final_4['RR'] = df_final_3['Feedin_Ratio(g/g)']
-            df_final_4['% CuT Acumul'] = df_final_3['Cumulated(%CuT)']
-            df_final_4['Mod Rec Cu'] = df_final_3['Ext%_Cu_model_t1']
-            df_final_4['error'] = (df_final_4['% CuT Acumul'] - df_final_4['Mod Rec Cu'])**2
-            df_final_4['acido agregado'] = df_final_3['Added_H2SO4_Cumulated(Kg/Tn)']
-            df_final_4['Mod Rec Cu acido'] = df_final_3['Ext%_Cu_model_ac1']
-            df_final_4['Error'] = (df_final_4['% CuT Acumul'] - df_final_4['Mod Rec Cu acido'])**2
-            df_final_4['NAC'] = df_final_3['Net_Acid_Consumption(Kg/Tn)']
-
-            def agregar_encabezado_modelo_doble(df, A1, A2, R1, R2,B1,B2,S1,S2,r2_1,r2_2,rmse_1,rmse_2,to,aco):
-                header_data = [
-                    ["","","A1", A1, "",'B1',B1,"", "",''],
-                    ["","","A2", A2, "",'B2',B2,"", "",''],
-                    ["","","R1", R1, "",'S1',S1,"", "",''],
-                    ["","","R2", R2, "",'S2',S2,"","",''],
-                    ["","","to", to, "",'ao',aco,"", "",''],
-                    ["","","","","","","","","",''],
-                    ["","","R2", "S2", "", "R2", "S2", "","",''],
-                    ["","",r2_1, rmse_1,"",r2_2,rmse_2,"","",''],
-                    ["","","","","","","","","",''],
-                    #['columna',"dias", "RR", "% CuT Acumul", "Mod Rec Cu", "error", "acido_agregado", "Mod Rec Cu_acido", "error_acido", "NCA"]
-                    ]
-                
-                header_df = pd.DataFrame(header_data)
-                header_df.columns = df.columns
-                # Concatenar los encabezados con el DataFrame original
-                combined_df = pd.concat([header_df, df], ignore_index=True, axis=0)
-                combined_df['dias']= pd.to_numeric(combined_df['dias'], errors='coerce')
-                return combined_df
-            
-                        
-            def agregar_encabezado_modelo_exponencial(df, K1, K2, K3, n1,G1,G2,G3,n2,r2_1,r2_2,rmse_1,rmse_2,to,aco):
-                header_data = [
-                    ["","","K1", K1, "",'G1',G1,"", "",''],
-                    ["","","K2", K2, "",'G2',G2,"", "",''],
-                    ["","","K3", K3, "",'G3',G3,"", "",''],
-                    ["","","n1", n1, "",'n2',n2,"","",''],
-                    ["","","to", to, "",'ao',aco,"", "",''],
-                    ["","","","","","","","","",''],
-                    ["","","R2", "S2", "", "R2", "S2", "","",''],
-                    ["","",r2_1, rmse_1,"",r2_2,rmse_2,"","",''],
-                    ["","","","","","","","","",''],
-                    #['columna',"dias", "RR", "% CuT Acumul", "Mod Rec Cu", "error", "acido_agregado", "Mod Rec Cu_acido", "error_acido", "NCA"]
-                    ]
-                
-                header_df = pd.DataFrame(header_data)
-                header_df.columns = df.columns
-                # Concatenar los encabezados con el DataFrame original
-                combined_df = pd.concat([header_df, df], ignore_index=True, axis=0)
-                combined_df['dias']= pd.to_numeric(combined_df['dias'], errors='coerce')
-                return combined_df
-            
-            df_con_encabezado_modelo_doble = agregar_encabezado_modelo_doble(df_final_4, A1, A2, R1, R2,B1,B2,S1,S2,r2_t1,r2_ac1,rmse_t1,rmse_ac1,to=3,aco=ac_0)
-            #df_con_encabezado_modelo_doble['dias']= pd.to_numeric(df_con_encabezado_modelo_doble['dias'], errors='coerce')
-            
-            df_con_encabezado_modelo_exponencial = agregar_encabezado_modelo_exponencial(df_final_4,K1, K2, K3, n1,G1,G2,G3,n2,r2_t2,r2_ac2,rmse_t1,rmse_t2,to=3,aco=ac_0)
-            #df_con_encabezado_modelo_exponencial['dias']= pd.to_numeric(df_con_encabezado_modelo_exponencial['dias'], errors='coerce')
-            
+            df_final_2 = df_final_2.drop(df_final_2.index[0])    
             dfs1.append(df_final_2)
-            dfs2.append(db_1)
-            dfs3.append(df_cm)
-            dfs4.append(df_con_encabezado_modelo_doble)
-            dfs5.append(df_con_encabezado_modelo_exponencial)
-            dfs6.append(df_rcd_total)
-            dfs7.append(df_cluster)
-
-        return dfs1,dfs2,dfs3,dfs4,dfs5,dfs6,dfs7
-    
-    def resumen_cu(self):
-        data_resumen_cu = pd.DataFrame()
-        data_resumen_cu['Columnas'] = self.db_cu['equivalencias']
-        data_resumen_cu['Ley_Cabeza'] = self.db_cu['CuTotal']
-        data_resumen_cu['Indice_Lixiviación'] = self.db_cu['CuTotal']/(self.db_cu['CuH2SO4'] + self.db_cu['CuCN'])
-        return data_resumen_cu
-            
+        return dfs1
 
     def consolidado(self):
-        lista_dfs1,lista_dfs2,lista_dfs3,lista_dfs4,lista_dfs5,lista_dfs6,lista_dfs7  = self.process()
-        
-        #lista_dfs7
-        df_cluster = pd.concat(lista_dfs7,axis=0)
-        
-        #lista_dfs1 es el consolidado
+        lista_dfs1  = self.process()
         df_consolidado = pd.concat(lista_dfs1,axis=0)
-        
-        #lista_dfs2 es un df con los coeficientes de los 
-        #4 modelos(2 de tiempo y 2 de cons_acido)
-        df_coeficientes = pd.concat(lista_dfs2, axis=0)
-
-       # lista_dfs3 es el resumen de parámetros importantes
-        def asignar_odenar_grupos(columna):
-            directorio = 'columnas_actualizada_'
-            # Listas para agrupar los nombres de los archivos
-            lista_enriquecidos = []
-            lista_mixtos = []
-            lista_transicionales = []
-            lista_referenciales = []
-
-            # Recorrer todos los archivos en el directorio
-            for archivo in os.listdir(directorio):
-                if archivo.endswith('.xlsx'):
-                    partes = archivo.split(' - ')
-                    if len(partes) > 2:
-                        tcs_part = partes[2].split(' ')[0].lstrip('0')
-                        nombre_tcs = f"TCS {tcs_part}"
-                        
-                        # Clasificación según el nombre del archivo
-                        if 'Enriquecido' in archivo:
-                            lista_enriquecidos.append(nombre_tcs)
-                        elif 'Mixto' in archivo:
-                            lista_mixtos.append(nombre_tcs)
-                        elif 'Transicional' in archivo:
-                            lista_transicionales.append(nombre_tcs)
-                        else:
-                            lista_referenciales.append(nombre_tcs)
-
-            if columna in lista_enriquecidos:
-                return 1
-            if columna in lista_transicionales:
-                return 3
-            if columna in lista_mixtos:
-                return 2
-            if columna in lista_referenciales:
-                return 4
-            else:
-                999
-        df_resumen_parametros = pd.concat(lista_dfs3, axis=0)
-        df_resumen_parametros['grupo'] = df_resumen_parametros['columna'].apply(asignar_odenar_grupos)
-        grupo_col = df_resumen_parametros.pop('grupo')
-        df_resumen_parametros.insert(0, 'grupo', grupo_col)
-        df_resumen_parametros['grupo'] = pd.to_numeric(df_resumen_parametros['grupo'], errors='coerce')
-        df_resumen_parametros_ordenado = df_resumen_parametros.sort_values(by=['grupo','Dias de Lixiviación'])
-        reemplazos = {1: 'Enr', 2: 'Mix', 3: 'Tran', 4: 'Ref'}
-        df_resumen_parametros_ordenado['grupo'] = df_resumen_parametros_ordenado['grupo'].replace(reemplazos)
-        #df_resumen_parametros_ordenado['grupo'] = df_resumen_parametros['grupo'].replace(reemplazos)
-        df_resumen_parametros = df_resumen_parametros_ordenado.transpose()
-
-
-        def funcion_modelo_ordenar(df,var_orden):
-            lista_df_resumen_sin_ordenar = df
-            lista_df_resumen_ordenada = sorted(lista_df_resumen_sin_ordenar, key=lambda df:df[var_orden].max())
-            df_resumen_ordenada = pd.concat(lista_df_resumen_ordenada,axis=1)
-            headers_s = df_resumen_ordenada.columns.tolist()
-            df_resumen_ordenada.iloc[8] = headers_s
-            df_resumen_ordenada.columns = range(df_resumen_ordenada.shape[1])
-            return df_resumen_ordenada
-        
-        def clasificador_grupos(df,atributo):
-            directorio = 'columnas_actualizada_'
-            # Listas para agrupar los nombres de los archivos
-            lista_enriquecidos = []
-            lista_mixtos = []
-            lista_transicionales = []
-            lista_referenciales = []
-
-            # Recorrer todos los archivos en el directorio
-            for archivo in os.listdir(directorio):
-                if archivo.endswith('.xlsx'):
-                    partes = archivo.split(' - ')
-                    if len(partes) > 2:
-                        tcs_part = partes[2].split(' ')[0].lstrip('0')
-                        nombre_tcs = f"TCS {tcs_part}"
-                        # Clasificación según el nombre del archivo
-                        if 'Enriquecido' in archivo:
-                            lista_enriquecidos.append(nombre_tcs)
-                        elif 'Mixto' in archivo:
-                            lista_mixtos.append(nombre_tcs)
-                        elif 'Transicional' in archivo:
-                            lista_transicionales.append(nombre_tcs)
-                        else:
-                            lista_referenciales.append(nombre_tcs)
-            df_enriquecido = df[df[atributo].isin(lista_enriquecidos)]
-            df_mixto = df[df[atributo].isin(lista_mixtos)]
-            df_transicional = df[df[atributo].isin(lista_transicionales)]
-            df_referencial = df[df[atributo].isin(lista_referenciales)]
-            return df_enriquecido, df_mixto, df_transicional, df_referencial
-
-
-        #lista_dfs4 es el resultado del modelo doble
-        df_resumen_modelo_doble = funcion_modelo_ordenar(lista_dfs4,'dias')
-        #df_resumen_modelo_doble = pd.concat(df_resumen_modelo_doble, axis=1)
-
-        #lista_dfs5 es el resultado del modelo exponencial
-        df_resumen_modelo_exponencial = funcion_modelo_ordenar(lista_dfs5,'dias')
-        #df_resumen_modelo_exponencial = pd.concat(df_resumen_modelo_exponencial, axis=1)
-
-        #lista_dfs6 es el resumen de caracterización química
-        df_resumen_carac_quim = pd.concat(lista_dfs6, axis=0)
-        df_enriquecido, df_mixto, df_transicional, df_referencial = clasificador_grupos(df=df_resumen_carac_quim, atributo='columna')
-        df_enriquecido = df_enriquecido.reset_index(drop=True)
-        df_mixto = df_mixto.reset_index(drop=True)
-        df_transicional = df_transicional.reset_index(drop=True)
-        df_referencial = df_referencial.reset_index(drop=True)
-        df_resumen_total =  pd.concat([df_enriquecido, df_mixto, df_transicional, df_referencial],axis=1)
-
-
         nuevos_nombres = {'Nombre del Archivo':'columna','Fecha':'fecha','Día':'dias','Peso(g)_Feed':'riego_refino_peso_g','Feedin_Ratio(g/g)':'ratio_riego_refino_m3/t',
                           'Actual_Rate(Kg/hm2)':'ratio_riego_refino_kg/hm2','Cu(g/Kg)_Feed':'Cu_refino_g/kg','ÁcidoLibre(g/Kg)_Feed':'acido_refino_g/kg',
                           'Fe(g/Kg)_Feed':'FeTotal_refino_g/kg','Fe+2(g/Kg)_Feed':'Fe+2_refino_g/kg','Fe+3(g/Kg)_Feed':'Fe+3_refino_g/kg','ORP(mV)_Feed':'ORP_refino_mV',
-                          'pH_Feed':'pH_refino','Peso(g)_PLS':'DrainDown_PLS_g','Feedin_Ratio(g/g)_pls':'DrainDownPLS_g/kg','Actual_Rate(Kg/hm2)':'Drain_Down_PLS_kg/hm2',
+                          'pH_Feed':'pH_refino','Peso(g)_PLS':'DrainDown_PLS_g','Feedin_Ratio(g/g)_pls':'DrainDownPLS_g/kg','Actual_Rate(Kg/hm2)':'DrainDown_PLS_Kg/hm2',
                           'Cu(g/Kg)_PLS':'Cu_PLS_g/kg','Cu_Neto(g/Kg)_PLS':'CuNet_PLS_g/kg','ÁcidoLibre(g/Kg)_PLS':'acido_PLS_g/kg','Fe(g/Kg)_PLS':'FeTotal_PLS_g/kg',
                           'Fe+2(g/Kg)_PLS':'Fe+2_PLS_g/kg','Fe+3(g/Kg)_PLS':'Fe+3_PLS_g/kg','ORP(mV)_PLS':'ORP_PLS_mV','pH_PLS':'pH_PLS','Raffinate_Density':'densidad_refino_gr/cc',
                           'PLS_Density':'densidad_PLS_gr/cc','Free_Column_Height':'altura_libre_column_cm','Cumulated Compaction':'%_compactacion_column',
@@ -908,7 +440,7 @@ class MetallurgicalProcess:
                           'Cu_extraido(Kg/m3)':'Cu_extraido_kg/refino_agregado_m3','Kg_Cu_extr/kg_Cu_ad(Kg/Kg)':'Cu_extraido_kg/Cu_adicionado_refino','KgCu_extr/dia(Kg)':'Cu_extraido_dia_kg','Raffinate_Fe+3/FeT':'Fe+3/FeT_refino',
                           'pls_Fe+3/FeT':'Fe+3/FeT_PLS','Fe+3pls/Fe+3ref':'Fe+3_PLS / Fe+3_refino','Ext%Cu_oxidos':'Ext%Cu_oxidos','Ext%Cu_facil':'Ext%Cu_facil','Ext%Cu_IL':'Ext%Cu_IL'}
         df_consolidado = df_consolidado.rename(columns=nuevos_nombres)
-        return df_consolidado,df_coeficientes, df_resumen_parametros, df_resumen_modelo_doble, df_resumen_modelo_exponencial, df_resumen_total, df_cluster
+        return df_consolidado
 
 
 

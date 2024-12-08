@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Descripción de tu proyecto">
+    <meta name="author" content="MichaelCueto">
+    <meta name="keywords" content="HTML, CSS, JavaScript, proyecto">
+
+    <title>Report Columnas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="robots" content="index, follow">
+</head>
+<body>
+    <!-- Encabezado principal -->
+    <header>
+        <h1>Dashboard Columnas de Lixiviación de Cobre</h1>
+    </header>
+
+    <!-- Sección principal -->
+    <main>
+        <section id="Archivos">
+            <h2>Seleccione la Carpeta de Archivos</h2>
+            <input type="file" id="folderPicker" webkitdirectory multiple>
+            <button id="processButton">Procesar Archivos</button>
+            <div id="loadingIndicator" style="display: none;">🔄 Procesando...</div> <!-- Indicador de carga -->
+            <div id="resultado"></div>
+        </section>
+        
+        <section id="resultado">
+            <h2>Resultados Procesados</h2>
+            <div class="table-container">
+                <div id="tabla-resultado"></div>
+            </div>
+        </section>  
+        
+        <section id="Columnas">
+            <h2>Seleccione las Columnas</h2>
+            <select id="Seleccionador">
+                <option value="" disabled selected>Seleccione las columnas</option>
+            </select>
+        </section>
+
+        <section id="Variables">
+            <h2>Seleccione las Variables X e Y</h2>
+            <div class="variable-container">
+                <label for="variableX">Variable X:</label>
+                <select id="variableX">
+                    <option value="" disabled selected>Seleccione la variable X</option>
+                </select>
+            </div>
+            <div class="variable-container">
+                <label for="variableY">Variable Y:</label>
+                <select id="variableY">
+                    <option value="" disabled selected>Seleccione la variable Y</option>
+                </select>
+            </div>
+        </section>
+                     
+    </main>
+
+    <!-- Pie de página -->
+    <footer>
+        <p>&copy; 2024 Mi Proyecto. Todos los derechos reservados.</p>
+        <nav>
+            <ul>
+                <li><a href="https://github.com/MichaelCueto">Github</a></li>
+                <li><a href="https://www.linkedin.com/in/michaelcuetom/">LinkedIn</a></li>
+            </ul>
+        </nav>
+    </footer>
+
+    <!-- Archivo JavaScript externo -->
+    <script src="static/script.js"></script>
+</body>
+</html>

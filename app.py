@@ -1,98 +1,100 @@
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import pandas as pd
-import plotly.express as px
-from params import color_map, symbol_map
-from user import run_process
-import logging
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+import os
+from werkzeug.utils import secure_filename
+from data_processing import ExcelReader, MetallurgicalProcess
 
-def run_app(folder_path):
+# Crear la aplicación Flask
+app = Flask(__name__, template_folder='templates', static_folder='static')
+CORS(app)  # Permitir solicitudes CORS
+
+# Configuración de la carpeta para guardar archivos subidos
+UPLOAD_FOLDER = './temp_files'
+ALLOWED_EXTENSIONS = {'xlsx'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Crear la carpeta si no existe
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Variable global para almacenar df_final
+df_final = None
+
+# Verificar que los archivos tienen extensiones permitidas
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Ruta principal para cargar la página HTML
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Ruta para manejar la subida y procesamiento de archivos
+@app.route('/upload', methods=['POST'])
+def upload_files():
+    """Procesar los archivos enviados desde el frontend."""
+    global df_final  # Hacer que df_final sea accesible en todo el programa
+
+    if 'files' not in request.files:
+        return jsonify({'error': 'No se encontraron archivos en la solicitud'}), 400
+
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({'error': 'No se seleccionaron archivos para cargar'}), 400
+
+    # Guardar los archivos en la carpeta temporal
+    saved_files = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            saved_files.append(file_path)
+            print(f"Archivo guardado: {file_path}")
+
+    if not saved_files:
+        print("No se guardaron archivos válidos.")
+        return jsonify({'error': 'No se encontraron archivos válidos para procesar'}), 400
+
+    # Procesar los archivos
     try:
-        logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.info(f'Iniciando el proceso con la carpeta: {folder_path}')
-        
-        df = run_process(folder_path)
-        logging.info('Proceso completado y datos cargados en el DataFrame.')
+        excel_reader = ExcelReader(app.config['UPLOAD_FOLDER'])
+        dfs = excel_reader.read_excel_files()
+        parameters = excel_reader.calculate_parameters()
 
-        app = dash.Dash(__name__)
-
-        app.layout = html.Div([
-            html.H1("Dashboard de Visualización", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-            
-            html.Label("Seleccionar subconjunto de datos por columna (Gráfico 1):", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-            dcc.Dropdown(
-                id='dropdown-columna-graph1',
-                options=[{'label': i, 'value': i} for i in df['columna'].unique()],
-                multi=True,
-                value=list(df['columna'].unique())
-            ),
-
-            html.Div([
-                html.Label("Seleccionar variable para el eje X (Gráfico 1):", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-                dcc.Dropdown(
-                    id='dropdown-x-graph1',
-                    options=[{'label': col, 'value': col} for col in df.columns],
-                    value='fecha'
-                ),
-                html.Label("Seleccionar variable para el eje Y (Gráfico 1):", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-                dcc.Dropdown(
-                    id='dropdown-y-graph1',
-                    options=[{'label': col, 'value': col} for col in df.columns],
-                    value='riego_refino_peso_g'
-                ),
-            ], style={'width': '48%', 'display': 'inline-block'}),
-            
-            dcc.Graph(id='graph1'),
-
-            # html.H2("Dashboard análisis de Cu", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-            
-            # html.Label("Seleccionar subconjunto de datos por columna (Gráfico 2):", style={'font-family': 'Arial', 'font-weight': 'bold'}),
-            # dcc.Dropdown(
-            #     id='dropdown-columna-graph2',
-            #     options=[{'label': i, 'value': i} for i in df_il['columna'].unique()],
-            #     multi=True,
-            #     value=list(df_il['columna'].unique())
-            # ),
-            
-            # dcc.Graph(id='graph2'),
-        ])
-
-        @app.callback(
-            Output('graph1', 'figure'),
-            [Input('dropdown-x-graph1', 'value'),
-             Input('dropdown-y-graph1', 'value'),
-             Input('dropdown-columna-graph1', 'value')]
+        metallurgical_process = MetallurgicalProcess(
+            df=dfs,
+            parameters=parameters,
+            Raffinate_Density=1.04,
+            PLS_Density=0
         )
-        def update_graph1(x_variable, y_variable, selected_tipo):
-            filtered_df = df[df['columna'].isin(selected_tipo)]
-            fig = px.scatter(filtered_df, x=x_variable, y=y_variable, color='columna',
-                             color_discrete_map=color_map, symbol='columna', symbol_map=symbol_map, height=600, width=1200)
-            fig.update_traces(marker=dict(size=0), selector=dict(mode='markers', name='TBC015 OP Enriquecido'))
-            fig.update_traces(mode='lines', selector=dict(name='TBCE15 OP Enriquecido'))
-            fig.update_traces(marker=dict(size=0), selector=dict(mode='markers', name='TBC016 OP Enriquecido'))
-            fig.update_traces(mode='lines', selector=dict(name='TBCE16 OP Enriquecido'))
-            fig.update_traces(marker=dict(size=0), selector=dict(mode='markers', name='TBCM011 OP Mixto'))
-            fig.update_traces(mode='lines', selector=dict(name='TBCM11 OP Mixto'))
-            fig.update_layout(
-                title={'text': f'<b>{y_variable} vs {x_variable}</b>', 'x': 0.5, 'y': 0.95, 'xanchor': 'center', 'yanchor': 'top'},
-                xaxis=dict(
-                    titlefont=dict(size=18),
-                    tickfont=dict(size=14)
-                ),
-                yaxis=dict(
-                    titlefont=dict(size=18),
-                    tickfont=dict(size=14)
-                ),
-                legend=dict(
-                    font=dict(size=14)
-                )
-            )
-            return fig
+        df_final = metallurgical_process.consolidado()
+        df_final = df_final.reset_index(drop=True)
+        df_final = df_final.loc[:, ~df_final.columns.duplicated()]
 
-        logging.info('Iniciando el servidor Dash.')
-        app.run_server(debug=False)
+        if df_final.empty:
+            return jsonify({'error': 'No se generaron datos procesados'}), 400
+
+        result_json = df_final.to_json(orient="records")
+        return jsonify({'data': result_json})
 
     except Exception as e:
-        logging.error(f'Error al iniciar el servidor Dash: {e}')
-        print(f'Error al iniciar el servidor Dash: {e}')
+        print(f"Error durante el procesamiento: {e}")
+        return jsonify({'error': 'Error al procesar los archivos', 'details': str(e)}), 500
+        
+@app.route('/get_columns', methods=['GET'])
+def get_columns():
+    global df_final  # Hacer que df_final sea accesible en esta ruta
+    try:
+        if df_final is None:
+            return jsonify({'error': 'No se han procesado archivos aún'}), 400
+
+        unique_columns = df_final['columna'].unique().tolist()  # Obtén valores únicos
+        return jsonify({'columns': unique_columns})  # Devuelve los valores como JSON
+    except Exception as e:
+        print(f"Error al obtener las columnas: {e}")
+        return jsonify({'error': 'No se pudo obtener las columnas', 'details': str(e)}), 500
+
+# Ejecutar la aplicación Flask
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
