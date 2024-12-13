@@ -2,11 +2,21 @@
 const processButton = document.getElementById('processButton');
 const folderPicker = document.getElementById('folderPicker');
 const loadingIndicator = document.getElementById('loadingIndicator');
+const fileLoadedIndicator = document.getElementById('fileLoadedIndicator');
 const resultContainer = document.getElementById('tabla-resultado');
 const columnSelector = document.getElementById('Seleccionador');
 const variableXSelector = document.getElementById('variableX');
 const variableYSelector = document.getElementById('variableY');
 const plotContainer = document.getElementById('interactive-plot');
+
+// Mostrar el mensaje "Archivos Cargados" al seleccionar una carpeta
+folderPicker.addEventListener("change", () => {
+    showNotification("📄 Archivos Cargados", "success", 5000); // Aviso de éxito
+});
+
+processButton.addEventListener("click", () => {
+    showNotification("🔄 Procesando...", "info", 0); // Duración 0 para que permanezca hasta que se cierre
+});
 
 // Manejar el clic en el botón para procesar los archivos
 processButton.addEventListener('click', async () => {
@@ -18,6 +28,7 @@ processButton.addEventListener('click', async () => {
     }
 
     loadingIndicator.style.display = 'inline-block';
+    fileIndicator.style.display = 'inline-block';
 
     try {
         const folderData = Array.from(files).map(file => ({
@@ -35,6 +46,7 @@ processButton.addEventListener('click', async () => {
             const result = await response.json();
             renderResults(JSON.parse(result.data));
             fetchColumnsAndFeatures();
+            
         } else {
             const error = await response.json();
             alert(`Error del servidor: ${error.details}`);
@@ -163,4 +175,35 @@ function renderScatterPlot(data) {
     };
 
     Plotly.newPlot(plotContainer, [trace], layout);
+}
+
+function showNotification(message, type = "info", duration = 5000) {
+    const notificationContainer = document.getElementById("notificationContainer");
+
+    // Crear la notificación
+    const notification = document.createElement("div");
+    notification.className = `notification notification-enter ${type}`;
+    notification.innerHTML = `
+        ${message}
+        <button class="close-btn" onclick="removeNotification(this.parentElement)">×</button>
+    `;
+
+    // Agregar la notificación al contenedor
+    notificationContainer.appendChild(notification);
+
+    // Eliminar automáticamente después de 'duration' ms
+    if (duration > 0) {
+        setTimeout(() => {
+            removeNotification(notification);
+        }, duration);
+    }
+}
+
+function removeNotification(notification) {
+    // Añadir clase de salida para la animación
+    notification.classList.add("notification-exit");
+    // Eliminar el elemento después de la animación
+    notification.addEventListener("animationend", () => {
+        notification.remove();
+    });
 }

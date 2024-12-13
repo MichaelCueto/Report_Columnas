@@ -1,11 +1,90 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     margin: 20px;
+    background-color: #d8e8e8;
+    color: rgb(0, 0, 0);
 }
+
+input#folderPicker{
+    display: None;
+}
+
+
+label#customFolderButton{
+    background-color: #2f3a56;
+    margin-top: 3em;
+    color:white;
+    border: none;
+    width: 180px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button#processButton {
+    background-color: #2f3a56;
+    color: white;
+    border: none;
+    width: 200px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+select#Seleccionador{
+    display: block;
+    width: 200px;
+    height: 150px;
+    padding: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    background-color: #2f3a56;
+    border-radius: 10px;
+    font-size: 16px;
+    color: white
+}
+
+select#variableX,select#variableY{
+    display: block;
+    width: 200px;
+    height: 40px; /* Aumenté ligeramente la altura para más claridad */
+    padding: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    background-color: #2f3a56; /* Color sólido azul */
+    border-radius: 10px; /* Bordes redondeados */
+    color: white; /* Texto blanco */
+    box-shadow: none; /* Eliminar sombras */
+    appearance: none; /* Estilo consistente entre navegadores */
+    outline: none; /* Eliminar resaltado en algunos navegadores */
+    cursor: pointer; /* Cambiar el cursor al apuntador */
+}
+
+label[for="variableX"],
+label[for="variableY"] {
+    width: 180px !important;
+    background-color: #e2474b !important; /* Fondo verde */
+    color: white !important; /* Texto blanco */
+    padding: 10px !important; /* Espaciado interno */
+    border-radius: 5px !important; /* Bordes redondeados */
+    display: inline-block !important; /* Asegura que el estilo aplique */
+    font-size: 16px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+}
+
 
 #interactive-plot {
     margin-top: 20px;
-    border: 2px solid blue;
+    border: 2px solid rgb(0, 0, 0);
     height: 500px;
 }
 
@@ -17,11 +96,113 @@ select {
 
 /* Estilo para el contenedor de la tabla */
 .table-container {
-    width: 70%; /* Ancho del contenedor */
+    width: 90%; /* Ancho del contenedor */
     height: 400px; /* Altura fija de la ventana */
     overflow: auto; /* Habilita barras de desplazamiento */
-    border: 1px solid #dd5757; /* Borde opcional */
+    border: 1px solid #1f1b8a; /* Borde opcional */
     margin: 20px auto; /* Centra horizontalmente el contenedor */
     padding: 10px; /* Espaciado interno */
     background-color: #f9f9f9; /* Fondo opcional */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse; /* Elimina los espacios entre las celdas */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    color: #333;
+    text-align: center;
+}
+
+/* Encabezado de la tabla */
+table thead th {
+    background-color: #2f3a56; /* Fondo azul */
+    color: #ffffff; /* Texto blanco */
+    padding: 10px;
+    border: 1px solid #2f3a56;
+    font-weight: bold;
+}
+
+/* Filas de la tabla */
+table tbody tr {
+    border: 1px solid #dddddd;
+    background-color: #ffffff; /* Fondo blanco */
+    transition: background-color 0.3s ease;
+}
+
+/* Alternar colores en las filas */
+table tbody tr:nth-child(even) {
+    background-color: #f2f2f2; /* Fondo gris claro para filas pares */
+}
+
+/* Efecto hover en las filas */
+table tbody tr:hover {
+    background-color: #eaf6ff; /* Fondo azul claro al pasar el mouse */
+}
+
+/* Contenedor de notificaciones */
+#notificationContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Estilo de las notificaciones */
+.notification {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Botón de cierre de notificación */
+.notification .close-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: white;
+    cursor: pointer;
+}
+
+/* Animación de entrada */
+.notification-enter {
+    animation: slideIn 0.5s ease;
+}
+
+/* Animación de salida */
+.notification-exit {
+    animation: slideOut 0.5s ease forwards;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
 }

@@ -6,33 +6,147 @@
     <title>Gráfico Interactivo</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Estilo general para el contenedor */
+        .menu-container {
+            position: relative;
+        }
+
+        /* Botón para mostrar/ocultar el menú */
+        .menu-toggle {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            z-index: 1000;
+            background-color: #a8d0da;
+            color: rgb(0, 0, 0);
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+
+        .menu-toggle:hover {
+            background-color: #2980b9;
+        }
+
+        /* Menú lateral */
+        .sidebar {
+            position: fixed;
+            left: -270px; /* Oculto inicialmente */
+            top: 0;
+            width: 200px;
+            height: 100vh;
+            background-color: #406d96;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            color: white;
+            overflow-y: auto;
+            transition: left 0.3s ease; /* Transición suave */
+        }
+
+        .sidebar.open {
+            left: 0; /* Mostrar el menú */
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .sidebar button,
+        .sidebar select,
+        .sidebar label {
+            display: block;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: none;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .sidebar button:hover,
+        .sidebar select:hover {
+            background-color: #2980b9;
+        }
+
+        .sidebar select {
+            background-color: white;
+            color: #333;
+        }
+
+        .main-content {
+            margin-left: 20px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.with-menu {
+            margin-left: 270px; /* Ajustar el contenido principal cuando el menú esté visible */
+        }
+
+        #loadingIndicator, #fileIndicator {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Procesamiento de Archivos</h1>
-    <div>
-        <label for="folderPicker">Selecciona una carpeta:</label>
-        <input type="file" id="folderPicker" webkitdirectory directory multiple>
-        <button id="processButton">Procesar Archivos</button>
-        <span id="loadingIndicator" style="display:none;">🔄Procesando...</span>
+    <div class="menu-container">
+        <!-- Botón para mostrar/ocultar el menú -->
+        <button class="menu-toggle" id="menuToggle">☰ Menú</button>
+
+        <!-- Menú lateral -->
+        <div class="sidebar" id="sidebar">
+            <label for="folderPicker" id="customFolderButton">Selecciona una carpeta</label>
+            <input type="file" id="folderPicker" webkitdirectory directory multiple>
+            <span id="fileIndicator" style="display:none; font-weight: bold;"></span>
+
+            <button id="processButton">Procesar Archivos</button>
+            <span id="loadingIndicator" style="display:none;"></span>
+
+            <h2>Seleccione las Columnas</h2>
+            <select id="Seleccionador" multiple></select>
+
+            <h2>Seleccione las Variables</h2>
+            <label for="variableX">Variable X:</label>
+            <select id="variableX"></select>
+            <label for="variableY">Variable Y:</label>
+            <select id="variableY"></select>
+        </div>
     </div>
+    <div id="notificationContainer"></div>
+    <!-- Contenido principal -->
+    <div class="main-content" id="mainContent">
+        <h1>Procesamiento de Archivos</h1>
 
-    <h2>Resultados Procesados</h2>
-    <div class="table-container">
-        <div id="tabla-resultado"></div>
+        <h2>Resultados Procesados</h2>
+        <div class="table-container">
+            <div id="tabla-resultado";"></div>
+        </div>
+
+        <h2>Gráfico Interactivo</h2>
+        <div id="interactive-plot";"></div>
     </div>
-
-    <h2>Seleccione las Columnas</h2>
-    <select id="Seleccionador" multiple></select>
-
-    <h2>Seleccione las Variables X e Y</h2>
-    <label for="variableX">Variable X:</label>
-    <select id="variableX"></select>
-    <label for="variableY">Variable Y:</label>
-    <select id="variableY"></select>
-
-    <h2>Gráfico Interactivo</h2>
-    <div id="interactive-plot" style="border: 1px solid blue; height: 500px;"></div>
 
     <script src="/static/script.js"></script>
+    <script>
+        // Obtener los elementos del DOM
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        // Manejar el clic en el botón de menú
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open'); // Alternar clase "open"
+            mainContent.classList.toggle('with-menu'); // Ajustar margen
+        });
+    </script>
 </body>
 </html>
