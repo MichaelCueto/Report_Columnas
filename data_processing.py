@@ -49,6 +49,7 @@ class ExcelReader:
             for pattern, replacement in patterns:
                 file_name_no_ext = re.sub(pattern, replacement, file_name_no_ext)
             # Eliminar ceros a la izquierda en los números después de 'TCS ' o 'TBCM'
+            file_name_no_ext = file_name_no_ext.replace('_', ' ')
             file_name_no_ext = re.sub(r'TCS 0*', 'TCS ', file_name_no_ext)
             file_name_no_ext = re.sub(r'TCC 0*', 'TCC ', file_name_no_ext)
             file_name_no_ext = re.sub(r'TBC 0*', 'TBC ', file_name_no_ext)

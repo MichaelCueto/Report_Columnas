@@ -1,28 +1,18 @@
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: Arial, sans-serif;
+    margin: 20px;
 }
 
-h1 {
-    color: #000000;
+#interactive-plot {
+    margin-top: 20px;
+    border: 2px solid blue;
+    height: 500px;
 }
 
-button {
-    padding: 10px 20px;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #0056b3;
-}
-
-#loadingIndicator {
-    font-size: 16px;
-    color: rgb(0, 0, 0);
-    font-weight: bold;
+select {
+    margin: 10px 0;
+    padding: 5px;
+    width: 300px;
 }
 
 /* Estilo para el contenedor de la tabla */
@@ -34,20 +24,4 @@ button:hover {
     margin: 20px auto; /* Centra horizontalmente el contenedor */
     padding: 10px; /* Espaciado interno */
     background-color: #f9f9f9; /* Fondo opcional */
-}
-
-table {
-    border-collapse: collapse;
-    width: 50%;
-}
-
-th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-}
-
-th {
-    background-color: #f2f2f2;
-    font-weight: bold;
 }
