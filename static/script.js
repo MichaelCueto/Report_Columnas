@@ -164,13 +164,18 @@ function renderScatterPlot(data) {
         mode: 'markers',
         type: 'scatter',
         text: data.label,
-        marker: { size: 10 }
+        marker: {
+            size: 10,
+            color: getColor(index),
+            symbol: getMarker(index)
+        },
     };
 
     const layout = {
         title: 'Gráfico Interactivo',
         xaxis: { title: variableXSelector.value || 'Días' },
         yaxis: { title: variableYSelector.value || 'Ext%Cu_IL' },
+        showlegend: true,
         margin: { l: 40, r: 40, t: 40, b: 40 }
     };
 
