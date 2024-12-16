@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: my_app
+    ports:
+      - "5001:5001"  # Puerto del host:puerto del contenedor
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+

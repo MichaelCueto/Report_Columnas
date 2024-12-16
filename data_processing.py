@@ -1,24 +1,12 @@
 import pandas as pd
 import numpy as np
 import math
-import seaborn as sns
-import matplotlib.pyplot as plt
 import warnings
 import os
-from plotnine import*
-#import openpyxl
-
-import plotly.express as px
-import plotly.graph_objects as go
-from scipy.optimize import curve_fit
-from sklearn.metrics import r2_score,mean_squared_error
-from openpyxl import load_workbook
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import pandas as pd
-from plotly.subplots import make_subplots
 import re
+from openpyxl import load_workbook
+from datetime import datetime
+
 # Ignorar todas las advertencias
 warnings.filterwarnings("ignore")
 

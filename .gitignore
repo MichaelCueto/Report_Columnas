@@ -1,0 +1,16 @@
+# Ignorar el entorno virtual
+venv/
+__pycache__/
+*.pyc
+
+# Ignorar archivos de Docker que no se necesitan
+.dockerignore
+*.log
+*.tmp
+
+# Ignorar dependencias innecesarias
+requirements.txt~
+
+# Archivos temporales y del sistema
+.DS_Store
+
