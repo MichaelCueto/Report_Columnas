@@ -9,7 +9,10 @@ input#folderPicker{
     display: None;
 }
 
-
+#menu {
+    position: relative;
+    z-index: 1; 
+}
 label#customFolderButton{
     background-color: #2f3a56;
     margin-top: 3em;
@@ -86,6 +89,7 @@ label[for="variableY"] {
     margin-top: 20px;
     border: 2px solid rgb(0, 0, 0);
     height: 500px;
+    z-index:1;
 }
 
 select {

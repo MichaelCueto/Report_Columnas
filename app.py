@@ -85,38 +85,23 @@ def get_filtered_data():
             return jsonify({'error': 'No se han procesado datos aún'}), 400
 
         data = request.get_json()
-        selected_columns = data.get('columns', [])
-        variable_x = data.get('variableX', 'dias')
-        variable_y = data.get('variableY', 'Ext%Cu_IL')
+        columns = data['columns']
+        variable_x = data['variableX']
+        variable_y = data['variableY']
 
-        if not selected_columns:
-            return jsonify({'error': 'No se seleccionaron columnas'}), 400
+        response_data = []
+        for column in columns:
+            # Filtra los datos por columna específica
+            df_filtered = df_final[df_final['columna'] == column]
+            series_data = {
+                "name": column,
+                "x": df_filtered[variable_x].tolist(),
+                "y": df_filtered[variable_y].tolist(),
+                "label": [column] * len(df_filtered)
+            }
+            response_data.append(series_data)
 
-        print(f"Columnas seleccionadas: {selected_columns}")
-        print(f"Variable X: {variable_x}, Variable Y: {variable_y}")
-
-        # Validar si las columnas seleccionadas existen
-        if 'columna' not in df_final.columns:
-            return jsonify({'error': "La columna 'columna' no existe en los datos procesados."}), 400
-
-        # Filtrar el DataFrame
-        filtered_df = df_final[df_final['columna'].isin(selected_columns)]
-
-        if filtered_df.empty:
-            return jsonify({'error': 'No hay datos para los valores seleccionados'}), 400
-
-        # Validar si las variables X e Y existen en el DataFrame
-        if variable_x not in filtered_df.columns or variable_y not in filtered_df.columns:
-            return jsonify({'error': f"Las columnas seleccionadas para X ({variable_x}) o Y ({variable_y}) no existen en los datos procesados."}), 400
-
-        # Preparar datos para el gráfico
-        scatter_data = {
-            'x': filtered_df[variable_x].tolist(),
-            'y': filtered_df[variable_y].tolist(),
-            'label': filtered_df['columna'].tolist()
-        }
-
-        return jsonify(scatter_data)
+        return jsonify(response_data)
     except Exception as e:
         print(f"Error al filtrar datos: {e}")
         return jsonify({'error': 'Error al filtrar datos', 'details': str(e)}), 500

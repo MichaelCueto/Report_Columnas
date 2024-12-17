@@ -156,31 +156,46 @@ columnSelector.addEventListener('change', async () => {
     }
 });
 
+function getColor(index) {
+    const colors = ['red', 'blue', 'green', 'orange', 'purple'];
+    return colors[index % colors.length]; // Colores aleatorios cíclicos
+}
+
+function getMarker(index) {
+    const markers = ['circle', 'square', 'diamond', 'cross', 'triangle-up'];
+    return markers[index % markers.length]; // Marcadores aleatorios cíclicos
+}
+
 // Renderizar el gráfico interactivo
 function renderScatterPlot(data) {
-    const trace = {
-        x: data.x,
-        y: data.y,
+    console.log("Datos recibidos para el gráfico:", data); // Verificar estructura
+
+    const traces = data.map((series,index) => ({
+        x: series.x,          // Array de valores X
+        y: series.y,          // Array de valores Y
         mode: 'markers',
         type: 'scatter',
-        text: data.label,
+        text: series.label,   // Array de etiquetas
+        name: series.name,      // Nombre del conjunto de datos
         marker: {
             size: 10,
-            color: getColor(index),
-            symbol: getMarker(index)
-        },
-    };
+            color: getColor(index),  // Color único para este trace
+            symbol: getMarker(index) // Marcador único
+        }
+    }));
 
     const layout = {
         title: 'Gráfico Interactivo',
-        xaxis: { title: variableXSelector.value || 'Días' },
-        yaxis: { title: variableYSelector.value || 'Ext%Cu_IL' },
+        xaxis: { title: variableXSelector.value || 'Eje X' },
+        yaxis: { title: variableYSelector.value || 'Eje Y' },
         showlegend: true,
         margin: { l: 40, r: 40, t: 40, b: 40 }
     };
 
-    Plotly.newPlot(plotContainer, [trace], layout);
+    // Dibujar el gráfico con un solo trace
+    Plotly.newPlot(plotContainer, traces, layout);
 }
+
 
 function showNotification(message, type = "info", duration = 5000) {
     const notificationContainer = document.getElementById("notificationContainer");
